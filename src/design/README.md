@@ -7,7 +7,8 @@ touching the app's code, its data or how accounts work.
 tokens.css            colours (light and dark), subject colours, fonts, corner radius, shadow
 fonts/                the font files (woff2) and their licences (SIL Open Font License)
 app.css               layout and the look of every screen and component
-favicon.svg           the browser-tab icon
+favicon.svg           the browser-tab icon (the book stack from the seal, as a 64 px picture)
+apple-touch-icon.png  the icon when the app is added to a phone's home screen (180 x 180)
 site.css              the public pages (over/, minimumdoelen/, en/...), on top of tokens.css
 og-image.png          the picture shown when a link to the site is shared (1200 x 630)
 animals/animals.json  which animals exist, their order in the picker, and the emoji each belongs to
@@ -103,7 +104,9 @@ and save it here.
   The app scales every animal until it touches the edge of the avatar, so they all look the same size.
   `/animals` in the preview tells you if one doesn't fill its frame.
 - **Add an animal:** save `name.svg` here and add `{"animal": "name", "emoji": "🦔"}` to
-  `animals.json`. The emoji is how a child's choice is stored; pick one that isn't used yet.
+  `animals.json`. The emoji is how a child's choice is stored; pick one that isn't used yet. It is never
+  shown while the drawing exists, so an animal without its own emoji can use a short word instead
+  (`"macaw"`), at most 16 characters.
 - **Never change or remove the emoji of an existing animal.** Children who chose it would lose their
   drawing (they fall back to showing the emoji). Changing the drawing itself is always safe.
 - **Reorder the picker** by reordering `animals.json`.

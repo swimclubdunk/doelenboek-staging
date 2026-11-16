@@ -285,6 +285,7 @@ def head(lang, title, description, path, alternates, extra_ld, css):
 {social_meta(lang, title, description, url(path))}{og_alt}
 <meta name="theme-color" content="#725C4E">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/fonts/clarity-city-latin.woff2" as="font" type="font/woff2" crossorigin>
 <script>let t = 'light'; try {{ if (localStorage.getItem('doelenboek.theme') === 'dark') t = 'dark'; }} catch (e) {{}} document.documentElement.dataset.theme = t;</script>
 <style>
@@ -320,7 +321,7 @@ def page(lang, title, description, path, alternates, extra_ld, css, current, bod
 <a class="skip" href="#inhoud">{escape(T['skip'])}</a>
 <header class="top">
   <div class="top-inner">
-    <a class="brand" href="/{ABOUT[lang]}/"><b>doelenboek.be</b></a>
+    <a class="brand" href="/{ABOUT[lang]}/"><b>Doelenboek.be</b></a>
     <nav class="site-nav" aria-label="{NAME}">{nav}</nav>
     <div class="top-right">
       <a class="lang-link" href="/{alternates[other]}/" hreflang="{other}" lang="{other}">{escape(T['other_lang'])}</a>
@@ -567,7 +568,7 @@ def site_files(design, doelen_dir, subject_keys):
     return files
 
 
-COPIED = ('favicon.svg', 'og-image.png')   # from design/ to the site root as they are
+COPIED = ('favicon.svg', 'apple-touch-icon.png', 'og-image.png', 'bg.jpg', 'logo.png')   # from design/ to the site root as they are
 
 
 def write_site(out_dir, design, doelen_dir, subject_keys):
