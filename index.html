@@ -193,6 +193,7 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 /* page head */
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 20px; flex-wrap: wrap; }
 .page-head > div:first-child { min-width: 0; }
+.h-count { font-size: .66em; }   /* the number after a page title: Kinderen (10) */
 .lede { color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; max-width: 70ch; }
 .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 /* the actions next to a page title belong together, so they share one look (no highlighted one) */
@@ -250,9 +251,14 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
    on a wider page instead of scaling up; empty tracks stay empty, so a lone chart does not stretch either */
 .pg { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 14px; }
 .pg-card { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px 10px; display: grid; gap: 6px; align-content: start; }
-.pg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.pg-head b { font-size: .95rem; }
-.pg-status { margin-left: auto; font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+/* every chart card the same header: the name on one line (cut off when too long), below it the level left and the
+   months ahead / behind right; that row keeps its height without a status, so all cards line up */
+.pg-head { display: grid; gap: 6px; min-width: 0; }
+.pg-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pg-name b { font-size: .95rem; white-space: nowrap; overflow: hidden; }
+.pg-name .dot { flex: none; }
+.pg-sub { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 23px; }   /* the height of the status pill */
+.pg-status { font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
 .pg-status.ahead { background: color-mix(in srgb, var(--s-wt) 14%, transparent); color: var(--s-wt); }
 .pg-status.behind { background: color-mix(in srgb, var(--danger) 10%, transparent); color: var(--danger); }
 .pg-card svg { width: 100%; height: auto; display: block; overflow: visible; }
@@ -263,6 +269,8 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .pg-fc { stroke-width: 2; stroke-dasharray: 1.5 4; stroke-linecap: round; fill: none; }
 .pg-today { stroke: var(--fg); stroke-width: 1; opacity: .35; }
 .pg-dot { stroke: var(--surface); stroke-width: 2; }
+/* mastered / total beside today's dot: bold, about the size of the text under the chart, with a halo in the card colour over the lines */
+.pg-now { fill: var(--fg); font-family: var(--f-body); font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; paint-order: stroke; }
 .pg-end { fill: var(--surface); stroke: var(--muted); stroke-width: 1.5; }
 .pg-foot { margin: 0; font-size: .8rem; color: var(--muted); }
 .pg-foot b { color: var(--fg); }
@@ -366,7 +374,7 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .child-card { display: grid; grid-template-rows: auto auto 1fr auto; gap: 12px; padding: 16px; }   /* footer at the bottom, so cards in a row line up */
 .cc-head { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
 .cc-id { min-width: 0; flex: 1; }
-.cc-id h2 { overflow-wrap: anywhere; }
+.cc-id h2 { white-space: nowrap; overflow: hidden; }   /* a long name stays on one line and is cut off at the edge (full name on hover) */
 .cc-tier { margin: 4px 0 3px; line-height: 1; }
 .meta { color: var(--muted); font-size: .84rem; }
 .cc-pct { text-align: right; display: grid; font-variant-numeric: tabular-nums; }
@@ -379,6 +387,7 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .cc-stat strong { font-weight: 700; }   /* the number: same size as the label, only bold */
 .cc-stat span { color: var(--muted); }
 .cc-stat small { grid-column: 1 / -1; color: var(--muted); font-size: .76rem; }
+.cc-sex { margin-left: auto; color: var(--muted); font-size: .84rem; }   /* Jongen / Meisje, top right, level with the activity count */
 .bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; align-content: start; }
 .bars li { display: grid; grid-template-columns: minmax(0, 8.5rem) 1fr 3.4rem 2.4rem; gap: 10px; align-items: center; font-size: .84rem; }
 .bars li.none { color: var(--muted); }
@@ -395,6 +404,28 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 
 /* toolbar */
 .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+/* a labelled dropdown in a toolbar (Kinderen: Sorteer op) */
+.sort-by { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: .84rem; font-weight: 700; }
+.sort-by .select { color: var(--fg); font-weight: 500; }
+.kid-order { gap: 10px 28px; align-items: stretch; }
+.kid-order .sort-by { align-items: center; flex-wrap: wrap; row-gap: 8px; min-width: 0; }   /* on a phone the levels go to a new line */
+.kid-order .sex-pick { height: 37px; }   /* the toggles: the dropdown's height */
+@media (max-width: 480px) {   /* a phone: the levels fill their own line with tighter buttons */
+  .kid-order .tier-filter { flex: 1 1 100%; margin-left: 0 !important; }
+  .kid-order .tier-filter button { flex: 1; padding: 0 4px; font-size: .74rem; }
+}
+.kid-order .sort-by > span { align-self: center; }
+.kid-order .select { width: 220px; }   /* 25% wider than its content needed in Dutch */
+.kid-order .search { flex: 1 1 220px; height: 37px; }   /* the search takes the rest of the row (its own line on a phone) */
+/* the boy / girl filter: the same look as the boy / girl choice, as buttons that switch on and off */
+.kid-order .sort-by > .sex-pick + .sex-pick { margin-left: 2px; }   /* the levels right after boy / girl */
+.tier-filter button { border: 0; border-radius: calc(var(--r-sm) - 2px); background: none; cursor: pointer; color: var(--muted); padding: 0 10px; font: inherit; font-size: .82rem; font-weight: 700; white-space: nowrap; }
+.tier-filter button:hover { color: var(--fg); }
+.tier-filter button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.sex-filter button { display: grid; place-items: center; width: 38px; border: 0; border-radius: calc(var(--r-sm) - 2px); background: none; cursor: pointer; color: var(--muted); padding: 0; }
+.sex-filter button:hover { color: var(--fg); }
+.sex-filter button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.sex-filter svg { width: 20px; height: 20px; display: block; }
 .search { flex: 1 1 240px; min-width: 0; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-sm); padding: 8px 12px; }
 .select { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r-sm); padding: 8px 10px; max-width: 100%; }
 .filter-hint { color: var(--muted); font-size: .84rem; }   /* the line above the subject buttons of the goals tab */
@@ -522,6 +553,20 @@ dialog::backdrop { background: rgb(40 30 22 / .45); }
 .field > span, .field-label { font-weight: 700; font-size: .86rem; }
 .field input, .field textarea, .field select { border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r-sm); padding: 9px 11px; width: 100%; }
 .field textarea { resize: vertical; min-height: 80px; }
+/* the name with the boy / girl buttons to its right */
+.name-row { display: flex; gap: 8px; align-items: stretch; }
+.name-row input { flex: 1; min-width: 0; }
+.sex-pick { display: flex; gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface-2); }
+/* the chosen one is filled, like the other switches (Alle / Te doen / Beheerst): no ring, so it never looks like a field being edited */
+.sex-pick label { position: relative; display: grid; place-items: center; width: 38px; border-radius: calc(var(--r-sm) - 2px); cursor: pointer; color: var(--muted); }
+.sex-pick input { position: absolute; opacity: 0; pointer-events: none; }
+.sex-pick label:hover { color: var(--fg); }
+.sex-pick label:has(input:checked) { background: var(--accent); color: var(--accent-fg); }
+.sex-pick label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sex-pick svg { width: 22px; height: 22px; display: block; }   /* the size of the pencil and bin icons */
+.field-hint { color: var(--muted); font-size: .84rem; margin-bottom: -6px; }   /* a line explaining the fields under it */
+.field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }   /* two short fields side by side (begin and target date) */
+@media (max-width: 420px) { .field-pair { grid-template-columns: 1fr; } }
 .kid-picks { display: flex; flex-wrap: wrap; gap: 6px; }
 .kid-pick { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px 3px 4px; cursor: pointer; position: relative; }
 .kid-pick:has(input:checked) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
@@ -13766,7 +13811,7 @@ const T = {
     ng_h: 'Vakken die lang niet aan bod kwamen', ng_note: 'Per kind de vakken waarvan de laatste activiteit het langst geleden is. Rood: meer dan 60 dagen of nog nooit.', ng_never: 'nooit', ng_days: n => `${n} d`, ng_tip: d => `Laatste activiteit: ${d}`, ng_tip_never: 'Nog geen activiteit voor dit vak',
     am_h: 'Bijna beheerst', am_note: 'Doelen die al in minstens 2 activiteiten aan bod kwamen, maar nog niet als beheerst aangevinkt zijn.', am_n: n => `${n}× gebruikt`, am_btn: 'Beheerst', am_more: n => `Toon alle ${n}`, am_less: 'Toon minder', am_none: 'Geen open doelen die al minstens 2 keer aan bod kwamen.',
     cal_h: 'Activiteitenkalender', cal_note: 'Elke dag van het afgelopen jaar; hoe donkerder, hoe meer activiteiten die dag.', cal_sum: (n, g) => `${nlN(n, 'activiteit', 'activiteiten')} het afgelopen jaar · langste pauze: ${nlN(g, 'dag', 'dagen')}`, cal_less: 'Minder', cal_more: 'Meer', cal_pick: 'Klik op een dag om de activiteiten van die dag te zien.', cal_none: 'Geen activiteiten op deze dag.', cal_go: 'Ga naar activiteit',
-    pg_h: 'Voortgang in het leerjaar', pg_note: 'Per kind: het deel van de doelen van hun leerjaar dat beheerst is. De streepjeslijn is het schema om op tijd 100% te halen, de puntjes zetten het huidige tempo verder. Het leerjaar telt vanaf de maand van het eerste beheerste doel (Kleuter 3 jaar, Lager LJ 1-4 4 jaar, Lager LJ 5-6 2 jaar, Secundair 1. graad 2 jaar).',
+    pg_h: 'Voortgang in het leerjaar', pg_note: 'Per kind: het deel van de doelen van hun leerjaar dat beheerst is. De streepjeslijn is het schema om op tijd 100% te halen, de puntjes zetten het huidige tempo verder. Elke grafiek loopt van de begindatum tot de streefdatum van het kind. Zonder die data telt ze vanaf de maand van het eerste beheerste doel (Kleuter 3 jaar, Lager LJ 1-4 4 jaar, Lager LJ 5-6 2 jaar, Secundair 1. graad 2 jaar).',
     pg_mastered: 'Beheerst', pg_target: 'Schema tot einde leerjaar', pg_fc: 'Verwachting aan huidig tempo', pg_today: 'Vandaag',
     pg_on: 'op schema', pg_ahead: n => `${n} mnd voor`, pg_behind: n => `${n} mnd achter`, pg_none: 'Nog geen beheerste doelen',
     pg_foot: (n, tot, p, e) => `<b>${n} van ${tot}</b> (${p}%) · schema ${e}%`, pg_when: d => ` · 100% verwacht in <b>${d}</b>`, pg_end: d => `, einde leerjaar ${d}`, pg_done: ' · alles beheerst',
@@ -13796,6 +13841,9 @@ const T = {
     empty_acts_h: 'Nog geen activiteiten', empty_acts_p: 'Registreer wat je samen deed en vink aan welke minimumdoelen erbij horen.',
     empty_acts_nokids: 'Voeg eerst een kind toe bij Kinderen.', to_overview: 'Naar Kinderen',
     search_kids: 'Zoek een kind op naam', no_kids_found: 'Geen kinderen gevonden.',
+    filter: 'Filter', filter_m: 'Jongens tonen of verbergen', filter_f: 'Meisjes tonen of verbergen', filter_tier: n => `${n} tonen of verbergen`, filter_tiers: 'Onderwijsniveaus',
+    sort_by: 'Sorteer op', sort_name_asc: 'Naam oplopend', sort_name_desc: 'Naam aflopend', sort_done_desc: 'Voltooiing aflopend',
+    sort_done_asc: 'Voltooiing oplopend', sort_tier_asc: 'Onderwijs oplopend', sort_tier_desc: 'Onderwijs aflopend',
     search_acts: 'Zoek op titel, notitie of doelcode', all_children: 'Alle kinderen', filter_child: 'Filter op kind',
     no_acts_found: 'Geen activiteiten gevonden met deze filters.', no_goals_linked: 'Geen minimumdoelen gekoppeld.', goals_aria: 'Minimumdoelen',
     h_goals: 'Doelen', goals_lede: 'De doelen waartegen je de voortgang meet. Officiële lijsten vind je op',
@@ -13805,10 +13853,12 @@ const T = {
     no_goals_found: 'Geen doelen gevonden met deze filters.',
     kid_done: n => `${n}: beheerst`, kid_open: n => `${n}: nog niet beheerst`,
     close: 'Sluiten', cancel: 'Annuleren', save: 'Opslaan', busy: 'Bezig…', progress: (a, b) => `Bezig… ${a}/${b}`,
-    child_edit_h: 'Kind wijzigen', child_add_h: 'Kind toevoegen', name: 'Naam', animal: 'Diertje', animal_taken: 'Al gekozen voor een ander kind',
+    child_edit_h: 'Kind wijzigen', child_add_h: 'Kind toevoegen', name: 'Naam', sex: 'Geslacht', sex_m: 'Jongen', sex_f: 'Meisje', animal: 'Diertje', animal_taken: 'Al gekozen voor een ander kind',
     tier: 'Onderwijsniveau', tier_all: 'Alle niveaus', tier_aria: 'Onderwijsniveau van de doelen',
     tier_soon: 'De doelen voor dit niveau volgen binnenkort.', filter_hint: 'Klik op een vak om zijn doelen te tonen of te verbergen.',
     ext: 'Uitbreidingsdoel', ext_tip: 'Een optioneel extra doel bovenop de minimumdoelen. Telt in Doelenboek mee zoals de andere doelen.',
+    dates_hint: 'De begin- en streefdatum dienen om de prestaties en vorderingen goed op te volgen.',
+    begin_date: 'Begindatum', target_date: 'Streefdatum', err_dates: 'De streefdatum moet na de begindatum liggen.',
     err_name: 'Vul een naam in.', err_dup_name: n => `Er is al een kind met de naam ${n}.`, saved_changes: 'Wijzigingen opgeslagen.', child_added: n => `${n} is toegevoegd.`,
     child_del_h: 'Kind verwijderen', child_del_q: n => `Weet je zeker dat je <b>${n}</b> wilt verwijderen?`,
     child_del_acts: (n, c) => `${n} wordt uit ${nlN(c, 'activiteit', 'activiteiten')} gehaald. De activiteiten zelf blijven bewaard.`,
@@ -13880,7 +13930,7 @@ const T = {
     ng_h: 'Subjects not covered for a while', ng_note: 'Per child the subjects whose last activity was longest ago. Red: more than 60 days, or never.', ng_never: 'never', ng_days: n => `${n} d`, ng_tip: d => `Last activity: ${d}`, ng_tip_never: 'No activity for this subject yet',
     am_h: 'Almost mastered', am_note: 'Goals that came up in at least 2 activities but are not ticked as mastered yet.', am_n: n => `used ${n}×`, am_btn: 'Mastered', am_more: n => `Show all ${n}`, am_less: 'Show fewer', am_none: 'No open goals that came up at least twice.',
     cal_h: 'Activity calendar', cal_note: 'Every day of the past year; the darker, the more activities that day.', cal_sum: (n, g) => `${nlN(n, 'activity', 'activities')} in the past year · longest break: ${nlN(g, 'day', 'days')}`, cal_less: 'Less', cal_more: 'More', cal_pick: 'Click a day to see its activities.', cal_none: 'No activities on this day.', cal_go: 'Go to activity',
-    pg_h: 'Progress in the year group', pg_note: 'Per child: the share of the goals of their year group that is mastered. The dashed line is the schedule to reach 100% in time, the dots continue the current pace. The year group counts from the month of the first mastered goal (Preschool 3 years, Primary YR 1-4 4 years, Primary YR 5-6 2 years, Secondary 1st stage 2 years).',
+    pg_h: 'Progress in the year group', pg_note: 'Per child: the share of the goals of their year group that is mastered. The dashed line is the schedule to reach 100% in time, the dots continue the current pace. Each chart runs from the begin date to the target completion date set for the child. Without those dates it counts from the month of the first mastered goal (Preschool 3 years, Primary YR 1-4 4 years, Primary YR 5-6 2 years, Secondary 1st stage 2 years).',
     pg_mastered: 'Mastered', pg_target: 'Schedule to the end of the year group', pg_fc: 'Expected at the current pace', pg_today: 'Today',
     pg_on: 'on track', pg_ahead: n => `${n} mo ahead`, pg_behind: n => `${n} mo behind`, pg_none: 'No goals mastered yet',
     pg_foot: (n, tot, p, e) => `<b>${n} of ${tot}</b> (${p}%) · schedule ${e}%`, pg_when: d => ` · 100% expected in <b>${d}</b>`, pg_end: d => `, end of year group ${d}`, pg_done: ' · all mastered',
@@ -13910,6 +13960,9 @@ const T = {
     empty_acts_h: 'No activities yet', empty_acts_p: 'Log what you did together and tick the minimum goals it covered.',
     empty_acts_nokids: 'Add a child under Children first.', to_overview: 'Go to Children',
     search_kids: 'Search children by name', no_kids_found: 'No children found.',
+    filter: 'Filter', filter_m: 'Show or hide boys', filter_f: 'Show or hide girls', filter_tier: n => `Show or hide ${n}`, filter_tiers: 'School levels',
+    sort_by: 'Sort by', sort_name_asc: 'Name Ascending', sort_name_desc: 'Name Descending', sort_done_desc: 'Completion Descending',
+    sort_done_asc: 'Completion Ascending', sort_tier_asc: 'Onderwijs Ascending', sort_tier_desc: 'Onderwijs Descending',
     search_acts: 'Search by title, notes or goal code', all_children: 'All children', filter_child: 'Filter by child',
     no_acts_found: 'No activities match these filters.', no_goals_linked: 'No minimum goals linked.', goals_aria: 'Minimum goals',
     h_goals: 'Goals', goals_lede: 'The goals to track progress against, translated from the official lists on',
@@ -13919,10 +13972,12 @@ const T = {
     no_goals_found: 'No goals match these filters.',
     kid_done: n => `${n}: mastered`, kid_open: n => `${n}: not mastered yet`,
     close: 'Close', cancel: 'Cancel', save: 'Save', busy: 'Working…', progress: (a, b) => `Working… ${a}/${b}`,
-    child_edit_h: 'Edit child', child_add_h: 'Add child', name: 'Name', animal: 'Animal', animal_taken: 'Already used for another child',
+    child_edit_h: 'Edit child', child_add_h: 'Add child', name: 'Name', sex: 'Sex', sex_m: 'Boy', sex_f: 'Girl', animal: 'Animal', animal_taken: 'Already used for another child',
     tier: 'School level', tier_all: 'All levels', tier_aria: 'School level of the goals',
     tier_soon: 'The goals for this level are coming soon.', filter_hint: 'Click a subject to show or hide its goals.',
     ext: 'Extension goal', ext_tip: 'An optional extra goal on top of the minimum goals. In Doelenboek it counts like the other goals.',
+    dates_hint: 'The start and target end dates are in order to properly track performance and progression.',
+    begin_date: 'Begin date', target_date: 'Target completion date', err_dates: 'The target completion date must be after the begin date.',
     err_name: 'Enter a name.', err_dup_name: n => `There is already a child called ${n}.`, saved_changes: 'Changes saved.', child_added: n => `${n} has been added.`,
     child_del_h: 'Delete child', child_del_q: n => `Are you sure you want to delete <b>${n}</b>?`,
     child_del_acts: (n, c) => `${n} will be removed from ${nlN(c, 'activity', 'activities')}. The activities themselves are kept.`,
@@ -14037,7 +14092,11 @@ function clean(col, b) {
     if (b.mastered && typeof b.mastered === 'object' && !Array.isArray(b.mastered)) {
       for (const [gid, d] of Object.entries(b.mastered).slice(0, 5000)) if (ID_RE.test(gid)) mastered[gid] = validDate(d) ? d : todayIso();
     }
-    return { ...base, name, animal: str(b.animal, 16) || ANIMALS[0], tier: TIER[b.tier] ? b.tier : DEFAULT_TIER, mastered };
+    /* optional: when the child began its level and when it aims to complete it */
+    const dates = {};
+    if (validDate(b.startDate)) dates.startDate = b.startDate;
+    if (validDate(b.targetDate)) dates.targetDate = b.targetDate;
+    return { ...base, name, sex: b.sex === 'f' ? 'f' : 'm', animal: str(b.animal, 16) || ANIMALS[0], tier: TIER[b.tier] ? b.tier : DEFAULT_TIER, ...dates, mastered };
   }
   if (col === 'activities') {
     const title = str(b.title, 200).trim();
@@ -14057,7 +14116,8 @@ const loaded = { children: false, activities: false };
 const ui = {
   view: 'overzicht', childId: null,
   goalSearch: '', goalSubj: new Set(SUBJECTS.map(s => s.key)), goalTier: null,   // null: follow the children's tier
-  childSearch: '', actSearch: '', actChild: '', closed: new Set(),
+  childSearch: '', childSort: 'name_asc', childSex: new Set(['m', 'f']), childTiers: new Set(TIERS.map(x => x.key)),   // Kinderen: order, and the boys / girls and levels shown
+  actSearch: '', actChild: '', closed: new Set(),
   kidTab: 'all', kidSearch: '',   // child page: all | todo | mastered, and its search
   dashFrom: null, dashTo: null, dashOff: new Set(), dashStraight: false,   // dashboard: first and last month (month numbers, null: from the first mastered goal, up to this month), the children switched off, straight or smooth lines
   dashRel: false,   // mastered goals: false ABS (the number of goals), true REL (percent of the child's level)
@@ -14277,6 +14337,18 @@ function buildCoverage() {
 }
 /* Mastered goals of a child that still exist: goalId -> date. */
 const masteredOf = c => new Map(Object.entries(c.mastered || {}).filter(([gid]) => data.goals.has(gid)));
+/* Kinderen: the order of the cards. Completion is the share of the child's own level that is mastered, so levels compare
+   fairly; Onderwijs follows the level order (Kleuter first). Ties go by name, A to Z. The choice is kept in this browser. */
+const KID_SORTS = ['name_asc', 'name_desc', 'done_desc', 'done_asc', 'tier_asc', 'tier_desc'];
+const KID_SORT_KEY = 'doelenboek.kidSort';
+try { const s = localStorage.getItem(KID_SORT_KEY); if (KID_SORTS.includes(s)) ui.childSort = s; } catch (e) {}
+function sortKids(kids) {
+  const byName = (a, b) => a.name.localeCompare(b.name, 'nl', { sensitivity: 'base' });
+  const done = new Map(kids.map(c => { const tier = tierOf(c), total = goalsOfTier(tier).length; return [c.id, total ? inTier(masteredOf(c), tier).size / total : 0]; }));
+  const [key, dir] = ui.childSort.split('_'), sign = dir === 'desc' ? -1 : 1;
+  const first = key === 'done' ? (a, b) => done.get(a.id) - done.get(b.id) : key === 'tier' ? (a, b) => TIER[tierOf(a)].i - TIER[tierOf(b)].i : byName;
+  return [...kids].sort((a, b) => sign * first(a, b) || byName(a, b));
+}
 function countBySubject(m) { const c = {}; if (m) for (const gid of m.keys()) { const g = data.goals.get(gid); if (g) c[g.subject] = (c[g.subject] || 0) + 1; } return c; }
 /* Activity tags per subject: every activity that tagged a goal counts, so one goal can count more than once. */
 function touchesBySubject(m) { const c = {}; if (m) for (const [gid, acts] of m) { const g = data.goals.get(gid); if (g) c[g.subject] = (c[g.subject] || 0) + acts.length; } return c; }
@@ -14294,6 +14366,9 @@ const ICON_SMOOTH = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="fals
 const ICON_STRAIGHT = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 18L9 9l6 4 6-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_EDIT = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const ICON_TRASH = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+/* boy and girl, drawn like the pencil and bin icons (24 grid, 2 wide, round ends) */
+const ICON_MALE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="14" r="5.5"/><path d="M14 10l6-6M15 4h5v5"/></g></svg>';
+const ICON_FEMALE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="5.5"/><path d="M12 14.5V21M9 18h6"/></g></svg>';
 const ICON_EYE = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
 const ICON_EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 4l16 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
@@ -14378,22 +14453,24 @@ function barRow(label, key, n, tot, touches) {
 function viewOverview(cov) {
   const kids = sortedChildren();
   let h = exampleBanner();
-  h += `<section class="page-head"><div><h1>${esc(t('h_overview'))}</h1><p class="lede">${esc(t('n_children', kids.length))}</p></div>
-    <div class="head-actions w"><button class="btn" data-action="add-child">${addBt('add_child')}</button></div></section>`;
+  const addBtn = `<button class="btn" data-action="add-child">${addBt('add_child')}</button>`;
+  h += `<section class="page-head"><div><h1>${esc(t('h_overview'))} <span class="h-count" aria-label="${esc(t('n_children', kids.length))}">(${kids.length})</span></h1></div>
+    <div class="head-actions w">${addBtn}</div></section>`;
   if (!kids.length) {
     return h + `<div class="empty"><h2>${esc(t('empty_kids_h'))}</h2><p>${esc(t('empty_kids_p'))}</p><button class="btn primary w" data-action="add-child">${bt('add_child')}</button></div>`;
   }
-  const q = norm(ui.childSearch), shown = q ? kids.filter(c => norm(c.name).includes(q)) : kids;
-  h += `<div class="toolbar"><input class="search" id="child-search" type="search" placeholder="${esc(t('search_kids'))}" value="${esc(ui.childSearch)}" aria-label="${esc(t('search_kids'))}"></div>`;
+  const q = norm(ui.childSearch), shown = kids.filter(c => (!q || norm(c.name).includes(q)) && ui.childSex.has(c.sex === 'f' ? 'f' : 'm') && ui.childTiers.has(tierOf(c)));
+  const sexToggle = (v, icon) => `<button type="button" data-action="kid-sex" data-sex="${v}" aria-pressed="${ui.childSex.has(v)}" title="${esc(t('filter_' + v))}" aria-label="${esc(t('filter_' + v))}">${icon}</button>`;
+  h += `<div class="toolbar kid-order"><label class="sort-by"><span>${esc(t('sort_by'))}</span><select class="select" id="child-sort">${KID_SORTS.map(k => `<option value="${k}" ${k === ui.childSort ? 'selected' : ''}>${esc(t('sort_' + k))}</option>`).join('')}</select></label><div class="sort-by"><span>${esc(t('filter'))}</span><div class="sex-pick sex-filter" role="group" aria-label="${esc(t('filter'))}">${sexToggle('m', ICON_MALE)}${sexToggle('f', ICON_FEMALE)}</div><div class="sex-pick tier-filter" role="group" aria-label="${esc(t('filter_tiers'))}">${TIERS.map(x => `<button type="button" data-action="kid-tier" data-tier="${x.key}" aria-pressed="${ui.childTiers.has(x.key)}" title="${esc(t('filter_tier', x.name[lang]))}">${esc(x.short[lang])}</button>`).join('')}</div></div><input class="search" id="child-search" type="search" placeholder="${esc(t('search_kids'))}" value="${esc(ui.childSearch)}" aria-label="${esc(t('search_kids'))}"></div>`;
   if (!shown.length) return h + `<p class="muted">${esc(t('no_kids_found'))}</p>`;
-  h += `<div class="child-grid">${shown.map(c => {
+  h += `<div class="child-grid">${sortKids(shown).map(c => {
     const acts = activitiesFor(c.id), tier = tierOf(c), totals = subjectTotals(tier), mast = inTier(masteredOf(c), tier);
     const per = countBySubject(mast), touches = touchesBySubject(inTier(cov.get(c.id) || new Map(), tier));
     return `<article class="card child-card">
       <header class="cc-head"><span class="avatar lg" aria-hidden="true">${animalArt(c.animal)}</span>
-        <div class="cc-id"><h2>${esc(c.name)}</h2><p class="cc-tier">${tierBadge(c)}</p></div>
+        <div class="cc-id"><h2 title="${esc(c.name)}">${esc(c.name)}</h2><p class="cc-tier">${tierBadge(c)}</p></div>
         <div class="cc-pct"><strong>${mast.size}<small>/${sumValues(totals)}</small></strong><span>${esc(t('mastered_lbl'))}</span></div></header>
-      <div class="cc-stats"><div class="cc-stat"><strong>${acts.length}</strong><span>${esc(t('acts_lbl', acts.length))}</span><small>${esc(acts[0] ? t('last', fmtDate(acts[0].date)) : t('no_acts_yet'))}</small></div></div>
+      <div class="cc-stats"><div class="cc-stat"><strong>${acts.length}</strong><span>${esc(t('acts_lbl', acts.length))}</span><small>${esc(acts[0] ? t('last', fmtDate(acts[0].date)) : t('no_acts_yet'))}</small></div><span class="cc-sex">${esc(t(c.sex === 'f' ? 'sex_f' : 'sex_m'))}</span></div>
       ${sumValues(totals) ? `<ul class="bars">${SUBJECTS.filter(s => totals[s.key]).map(s => barRow(sName(s.key, tier), s.key, per[s.key] || 0, totals[s.key], touches[s.key] || 0)).join('')}</ul>` : `<p class="muted">${esc(t('tier_soon'))}</p>`}
       <footer class="cc-foot"><button class="btn small ghost" data-action="open-child" data-id="${esc(c.id)}">${bt('goals_per_subject')}</button><button class="btn small ghost w btn-icon edit cc-edit" data-action="edit-child" data-id="${esc(c.id)}" aria-label="${esc(t('child_edit_h'))}" title="${esc(t('child_edit_h'))}">${ICON_EDIT}</button><button class="btn small ghost w btn-icon del" data-action="delete-child" data-id="${esc(c.id)}" aria-label="${esc(t('child_del_h'))}" title="${esc(t('child_del_h'))}">${ICON_TRASH}</button></footer>
     </article>`;
@@ -14650,35 +14727,42 @@ function viewDashboard() {
 const DASH_LINES = false;
 /* how long each level usually lasts, in years: the schedule runs from the first mastered goal to its end */
 const TIER_YEARS = { KO: 3, L4: 4, L6: 2, S1A: 2, S1B: 2 };
-/* Progress in the year group: a small chart per child on the same months and the same 0-100% scale, with the
-   share mastered, the schedule to 100% by the estimated end of the level, and the current pace continued. */
+/* Progress in the level: a small chart per child on the same 0-100% scale, with the share mastered, the schedule to
+   100% and the current pace continued. Each chart runs over the child's own window: from its begin date to its target
+   date when those are set in the child window, otherwise from the first mastered goal over the usual length of the
+   level (TIER_YEARS); the axis stretches to show this month when it falls outside the window. */
 function dashProgress(series, chips) {
   const now = monthNo(new Date());
   const kids = series.filter(s => s.on).map(s => {
     const tier = tierOf(s.kid), dates = [...inTier(masteredOf(s.kid), tier).values()].sort();
-    if (!dates.length) return { s, none: true };
-    const start = monthNo(dateObj(dates[0])), months = TIER_YEARS[tier] * 12, end = start + months;
-    const hist = dashMonths({ from: start, to: now }).map(m => dates.filter(d => d <= m.iso).length);
-    const pct = 100 * s.now / s.total, exp = Math.min(100, 100 * (now - start + 1) / months);
+    const set = s.kid.startDate || s.kid.targetDate;
+    if (!dates.length && !set) return { s, none: true };
+    const usual = TIER_YEARS[tier] * 12;
+    const start = s.kid.startDate ? monthNo(dateObj(s.kid.startDate)) : s.kid.targetDate && !dates.length ? monthNo(dateObj(s.kid.targetDate)) - usual : monthNo(dateObj(dates[0]));
+    const end = s.kid.targetDate ? Math.max(start + 1, monthNo(dateObj(s.kid.targetDate))) : start + usual, months = end - start;
+    const hist = now >= start ? dashMonths({ from: start, to: now }).map(m => dates.filter(d => d <= m.iso).length) : [];
+    const pct = 100 * s.now / s.total, exp = Math.max(0, Math.min(100, 100 * (now - start + 1) / months));
     const left = s.total - s.now, done = left <= 0 ? now : s.rate > 0 ? now + Math.ceil(left / s.rate) : null;
-    return { s, start, end, hist, pct, exp, done, diff: Math.round((pct - exp) / (100 / months)) };
+    return { s, start, end, hist, pct, exp, done, diff: Math.round((pct - exp) / (100 / months)), X0: Math.min(start, now), X1: Math.max(end, now + 1) };
   });
-  const charted = kids.filter(k => !k.none);
-  const X0 = Math.min(now, ...charted.map(k => k.start)), X1 = Math.max(now + 1, ...charted.map(k => k.end));
   const W = 400, H = 170, L = 34, R = 8, T = 8, B = 22;
-  const x = m => L + (m - X0) / (X1 - X0) * (W - L - R), y = p => T + (1 - p / 100) * (H - T - B);
+  const y = p => T + (1 - p / 100) * (H - T - B);
   const f = n => n.toFixed(1);
   const lFmt = new Intl.DateTimeFormat(t('locale'), { month: 'long', year: 'numeric' }), mName = k => cap1(lFmt.format(monthStart(k)));
-  let years = '';
-  for (let m = Math.ceil(X0 / 12) * 12; m <= X1; m += 12) years += `<text class="pg-ax" x="${f(x(m))}" y="${H - 6}" text-anchor="middle">${m / 12}</text><line class="pg-grid" x1="${f(x(m))}" x2="${f(x(m))}" y1="${y(0)}" y2="${y(0) + 4}"/>`;
   const grid = [0, 50, 100].map(p => `<line class="pg-grid" x1="${L}" x2="${W - R}" y1="${f(y(p))}" y2="${f(y(p))}"/><text class="pg-ax" x="${L - 6}" y="${f(y(p) + 3)}" text-anchor="end">${p}%</text>`).join('');
   const status = k => k.diff >= 0 ? `<span class="pg-status ahead">${esc(k.diff === 0 ? t('pg_on') : t('pg_ahead', k.diff))} ▲</span>` : `<span class="pg-status behind">${esc(t('pg_behind', -k.diff))} ▼</span>`;
+  /* mastered / total beside today's dot: on its left, or on its right when the dot is near the left edge */
+  const nowLabel = (cx, cy, txt) => { const left = cx - L > txt.length * 7.5 + 10; return `<text class="pg-now" x="${f(left ? cx - 8 : cx + 8)}" y="${f(cy)}" text-anchor="${left ? 'end' : 'start'}" dominant-baseline="middle">${esc(txt)}</text>`; };
   const card = k => {
-    const s = k.s, head = `<div class="pg-head"><span class="dot" style="--c:${s.c}"></span><b>${esc(s.name)}</b>${tierBadge(s.kid)}${k.none ? '' : status(k)}</div>`;
+    const s = k.s, head = `<div class="pg-head"><div class="pg-name"><span class="dot" style="--c:${s.c}"></span><b title="${esc(s.name)}">${esc(s.name)}</b></div>
+      <div class="pg-sub">${tierBadge(s.kid)}${k.none ? '' : status(k)}</div></div>`;
     if (k.none) return `<div class="pg-card">${head}<p class="muted pg-empty">${esc(t('pg_none'))}</p></div>`;
+    const { X0, X1 } = k, x = m => L + (m - X0) / (X1 - X0) * (W - L - R);   // this child's own months
+    let years = '';
+    for (let m = Math.ceil(X0 / 12) * 12; m <= X1; m += 12) years += `<text class="pg-ax" x="${f(x(m))}" y="${H - 6}" text-anchor="middle">${m / 12}</text><line class="pg-grid" x1="${f(x(m))}" x2="${f(x(m))}" y1="${y(0)}" y2="${y(0) + 4}"/>`;
     const pts = k.hist.map((v, i) => [x(k.start + i), y(100 * v / s.total)]);
-    const line = 'M' + pts.map(p => `${f(p[0])},${f(p[1])}`).join(' L');
-    const area = `${line} L${f(pts[pts.length - 1][0])},${f(y(0))} L${f(pts[0][0])},${f(y(0))} Z`;
+    const line = pts.length ? 'M' + pts.map(p => `${f(p[0])},${f(p[1])}`).join(' L') : '';
+    const area = pts.length ? `${line} L${f(pts[pts.length - 1][0])},${f(y(0))} L${f(pts[0][0])},${f(y(0))} Z` : '';
     let fc = '';
     if (k.done != null && k.done > now) {
       const e = Math.min(k.done, X1), p = Math.min(100, k.pct + (e - now) * s.rate / s.total * 100);
@@ -14690,11 +14774,12 @@ function dashProgress(series, chips) {
       <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(t('pg_aria', s.name, Math.round(k.pct), Math.round(k.exp)))}">
         ${grid}${years}
         <line class="pg-today" x1="${f(x(now))}" x2="${f(x(now))}" y1="${T}" y2="${f(y(0))}"/>
-        <path d="${area}" style="fill:${s.c}" opacity=".18"/>
+        ${area ? `<path d="${area}" style="fill:${s.c}" opacity=".18"/>` : ''}
         <path class="pg-target" d="M${f(x(k.start))},${f(y(0))} L${f(x(k.end))},${f(y(100))}"/>
-        <path d="${line}" class="pg-line" style="stroke:${s.c}"/>
+        ${line ? `<path d="${line}" class="pg-line" style="stroke:${s.c}"/>` : ''}
         ${fc}
         <circle cx="${f(x(now))}" cy="${f(y(k.pct))}" r="4" style="fill:${s.c}" class="pg-dot"/>
+        ${nowLabel(x(now), y(k.pct), `${s.now}/${s.total}`)}
         <circle cx="${f(x(k.end))}" cy="${f(y(100))}" r="3" class="pg-end"/>
       </svg>
       <p class="pg-foot">${foot}</p></div>`;
@@ -14909,11 +14994,16 @@ function childDialog(child) {
   const free = ANIMALS.filter(a => !used.has(a));
   const current = child ? child.animal : (free.length ? free[Math.floor(Math.random() * free.length)] : ANIMALS[0]);
   const curTier = child ? tierOf(child) : DEFAULT_TIER;
-  const body = `<label class="field"><span>${esc(t('name'))}</span><input id="c-name" name="name" maxlength="80" autocomplete="off" required autofocus value="${esc(child?.name || '')}"></label>
-    <div class="field" role="radiogroup" aria-label="${esc(t('tier'))}"><span class="field-label">${esc(t('tier'))}</span>
-      ${TIER_GROUPS.map(gr => `<p class="tier-row">${esc(gr.name[lang])}</p><div class="tier-grid">
-      ${TIERS.filter(x => x.group === gr.key).map(x => `<label><input type="radio" name="tier" id="c-tier-${x.key}" value="${x.key}" ${x.key === curTier ? 'checked' : ''}><b>${noHyphenBreak(x.name[lang])}</b><small>${esc(x.ages[lang])} · ${esc(t('n_goals_short', goalsOfTier(x.key).length))}</small></label>`).join('')}
-      </div>`).join('')}
+  const curSex = child?.sex === 'f' ? 'f' : 'm';
+  const sexBtn = (v, sym) => `<label title="${esc(t('sex_' + v))}"><input type="radio" name="sex" value="${v}" ${v === curSex ? 'checked' : ''} aria-label="${esc(t('sex_' + v))}">${sym}</label>`;
+  const body = `<div class="field"><label class="field-label" for="c-name">${esc(t('name'))}</label><div class="name-row"><input id="c-name" name="name" maxlength="80" autocomplete="off" required autofocus value="${esc(child?.name || '')}"><div class="sex-pick" role="radiogroup" aria-label="${esc(t('sex'))}">${sexBtn('m', ICON_MALE)}${sexBtn('f', ICON_FEMALE)}</div></div></div>
+    <label class="field"><span>${esc(t('tier'))}</span><select id="c-tier" name="tier">
+      ${TIER_GROUPS.map(gr => `<optgroup label="${esc(gr.name[lang])}">${TIERS.filter(x => x.group === gr.key).map(x => `<option value="${x.key}" ${x.key === curTier ? 'selected' : ''}>${esc(x.name[lang])} · ${esc(x.ages[lang])} · ${esc(t('n_goals_short', goalsOfTier(x.key).length))}</option>`).join('')}</optgroup>`).join('')}
+    </select></label>
+    <p class="field-hint">${esc(t('dates_hint'))}</p>
+    <div class="field-pair">
+      <label class="field"><span>${esc(t('begin_date'))}</span><input id="c-start" name="startDate" type="date" value="${esc(child?.startDate || '')}"></label>
+      <label class="field"><span>${esc(t('target_date'))}</span><input id="c-target" name="targetDate" type="date" value="${esc(child?.targetDate || '')}"></label>
     </div>
     <div class="field"><span class="field-label">${esc(t('animal'))}</span><div class="animal-grid" role="radiogroup" aria-label="${esc(t('animal'))}">
       ${ANIMALS.map((a, i) => `<label title="${used.has(a) ? esc(t('animal_taken')) : ''}"><input type="radio" name="animal" id="c-an-${i}" value="${esc(a)}" ${a === current ? 'checked' : ''} ${used.has(a) && free.length ? 'disabled' : ''}><span class="avatar" aria-hidden="true">${animalArt(a)}</span></label>`).join('')}
@@ -14925,9 +15015,11 @@ function childDialog(child) {
       const dup = [...data.children.values()].some(c => (!child || c.id !== child.id) && c.name.localeCompare(name, 'nl', { sensitivity: 'accent' }) === 0);
       if (dup) return t('err_dup_name', name);
       const animal = form.querySelector('input[name=animal]:checked')?.value || current;
-      const tier = form.querySelector('input[name=tier]:checked')?.value || curTier;
-      const now = Date.now();
-      await put('children', child?.id || newId(), { ...(child ? bodyOf(child) : { createdAt: now }), name, animal, tier, updatedAt: now, example: false });
+      const tier = TIER[form.tier.value] ? form.tier.value : curTier, sex = form.querySelector('input[name=sex]:checked')?.value === 'f' ? 'f' : 'm';
+      const startDate = validDate(form.startDate.value) ? form.startDate.value : '', targetDate = validDate(form.targetDate.value) ? form.targetDate.value : '';
+      if (startDate && targetDate && targetDate <= startDate) return t('err_dates');
+      const now = Date.now(), { startDate: _s, targetDate: _t, ...rest } = child ? bodyOf(child) : { createdAt: now };
+      await put('children', child?.id || newId(), { ...rest, name, sex, animal, tier, ...(startDate && { startDate }), ...(targetDate && { targetDate }), updatedAt: now, example: false });
       toast(child ? t('saved_changes') : t('child_added', name));
     });
   });
@@ -15472,6 +15564,8 @@ main.addEventListener('click', e => {
     case 'go-activity': ui.actSearch = ''; ui.actChild = ''; ui.goAct = id; location.hash = 'activiteiten'; return;
     case 'dash-kid': ui.dashOff.has(id) ? ui.dashOff.delete(id) : ui.dashOff.add(id); saveDash(); return render();
     case 'ext-tip': return toast(t('ext_tip'));
+    case 'kid-tier': { const v = b.dataset.tier; ui.childTiers.has(v) ? ui.childTiers.delete(v) : ui.childTiers.add(v); return render(); }
+    case 'kid-sex': { const v = b.dataset.sex; ui.childSex.has(v) ? ui.childSex.delete(v) : ui.childSex.add(v); return render(); }
     case 'goal-filter': { const k = b.dataset.key; ui.goalSubj.has(k) ? ui.goalSubj.delete(k) : ui.goalSubj.add(k); return render(); }
     case 'goal-filter-all': ui.goalSubj = goalTabSubjects().every(k => ui.goalSubj.has(k)) ? new Set() : new Set(SUBJECTS.map(s => s.key)); return render();
   }
@@ -15518,6 +15612,7 @@ main.addEventListener('input', e => {
 main.addEventListener('change', e => {
   if (e.target.id === 'act-child') { ui.actChild = e.target.value; render(); }
   if (e.target.id === 'goal-tier') { ui.goalTier = e.target.value; render(); }
+  if (e.target.id === 'child-sort' && KID_SORTS.includes(e.target.value)) { ui.childSort = e.target.value; try { localStorage.setItem(KID_SORT_KEY, ui.childSort); } catch (err) {} render(); }
   // dashboard months: the other end follows when the range would turn round or pass DASH_MAX months
   if (e.target.dataset.dash) {
     const key = e.target.dataset.key, r = dashRange(key), end = e.target.dataset.dash, v = Number(e.target.value), old = end === 'from' ? r.from : r.to;
