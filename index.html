@@ -342,6 +342,20 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .cal-card .cal { gap: 2px; }
 .cal-card .cal-days { gap: 2px; grid-template-rows: repeat(7, 11px); line-height: 11px; }   /* all seven days named, each on its 11px row */
 .cal-card .cal-d { aspect-ratio: auto; height: 11px; }   /* a fixed height: the weeks since the first activity share the width */
+/* Rapportering form: label left, choices right; the rows wrap on a phone */
+.rep-form { padding: 18px 20px; }
+.rep-form fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 16px; }
+.rep-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.rep-lbl { font-weight: 700; min-width: 96px; }
+.rep-seg { flex-wrap: wrap; }
+.rep-seg button { min-height: 29px; }
+.rep-kids { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.rep-kids label, .rep-check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.rep-form input[type="checkbox"] { accent-color: var(--accent); }
+.rep-form .date-in { display: inline-flex; align-items: center; gap: 6px; }
+.rep-form .date-in > span { min-width: 34px; }   /* Van / Tot line up */
+.rep-dates { padding-left: 108px; }
+@media (max-width: 560px) { .rep-dates { padding-left: 0; } }
 /* an activity reached from the dashboard calendar lights up for a moment */
 .act.flash { animation: act-flash 2.4s ease-out; }
 @keyframes act-flash { 0%, 35% { box-shadow: 0 0 0 3px var(--accent); } 100% { box-shadow: var(--shadow); } }
@@ -368,8 +382,6 @@ main { max-width: 1440px; margin: 0 auto; padding-inline: 16px; padding-block: 2
 .dc-axis span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 
 /* a short note under the title of a page whose feature is still to come (Reporting): plain text, no card */
-.soon-note { max-width: 70ch; display: grid; gap: 10px; }
-.soon-note p { margin: 0; }
 
 /* avatars */
 .avatar { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; overflow: hidden; background: var(--surface-2); font-size: 17px; line-height: 1; flex: none; }
@@ -1196,6 +1208,332 @@ async function process(file, maxB64) {
 return { process };
 })();
 if (typeof module !== 'undefined') module.exports = Images;
+</script>
+<script>
+/* Doelenboek reports: the texts, the period and selection rules and the PDF document description (pdfmake).
+   Pure functions only (no DOM, no Firebase, no pdfmake), so tests/report.test.mjs runs them in Node.
+   tools/build.py inlines this file into the app; src/report-run.js turns the description into a PDF. */
+const Report = (() => {
+'use strict';
+const PHOTOS_PER_ACTIVITY = 4;
+const PHOTO_WARN = 300;
+const PERIODS = ['school', '6m', 'all', 'custom'];
+/* the light subject colours of src/design/tokens.css, by the keys the dashboard gives children (DASH_COLORS) */
+const COLORS = { wk: '#2773B0', ge: '#A5631E', nl: '#0BB9BB', mv: '#8F4E88', wt: '#0A8257', lo: '#E98D90', at: '#A297E9', ak: '#9DA244' };
+
+const TEXTS = {
+  nl: {
+    rep_type: 'Soort rapport', rep_global: 'Globaal rapport', rep_child: 'Rapport per kind',
+    rep_children: 'Kinderen', rep_pick_child: 'Kind', rep_no_kids: 'Voeg eerst een kind toe om een rapport te maken.',
+    rep_period: 'Periode', rep_p_school: 'Dit schooljaar', rep_p_6m: 'Laatste 6 maanden', rep_p_all: 'Alles', rep_p_custom: 'Eigen data',
+    rep_from: 'Van', rep_until: 'Tot', rep_photos: "Met foto's", rep_download: 'Download',
+    rep_need_child: 'Kies minstens één kind.', rep_need_dates: 'Vul beide data in.',
+    rep_prog_photos: (n, tot) => `Foto's verkleinen: ${n} van ${tot}…`, rep_prog_pdf: 'PDF maken…',
+    rep_err_offline: 'Kon het rapport niet maken: geen verbinding. Probeer opnieuw.',
+    rep_err: m => `Kon het rapport niet maken: ${m}`,
+    rep_warn_h: "Veel foto's", rep_warn_p: n => `Dit rapport heeft ${n} foto's en kan traag zijn. Toch doorgaan?`, rep_warn_go: 'Toch doorgaan',
+    rep_title: 'Rapport', rep_summary: 'Gezinsoverzicht',
+    rep_made: d => `aangemaakt op ${d}`, rep_page: (p, n) => `pagina ${p} van ${n}`,
+    rep_range: (a, b) => `${a} – ${b}`, rep_range_all: b => `alle gegevens tot ${b}`,
+    rep_col_child: 'Kind', rep_col_level: 'Niveau', rep_col_new: 'Beheerst in periode', rep_col_total: 'Beheerst totaal', rep_col_acts: 'Activiteiten',
+    rep_start: 'Begindatum', rep_end: 'Einddatum',
+    rep_totals: (n, tot, k) => `${n} van ${tot} doelen beheerst, waarvan ${k} in deze periode`,
+    rep_chart: 'Beheerste doelen, per maand',
+    rep_goals: 'Doelen', rep_col_code: 'Code', rep_col_goal: 'Doel', rep_col_status: 'Status', rep_col_n: 'Act.',
+    rep_done: d => `beheerst ${d}`, rep_open: 'open',
+    rep_acts: 'Activiteiten', rep_no_acts: 'Geen activiteiten in deze periode.',
+    rep_missing: n => n === 1 ? '1 foto kon niet geladen worden' : `${n} foto's konden niet geladen worden`,
+    rep_file: 'rapport',
+  },
+  en: {
+    rep_type: 'Kind of report', rep_global: 'Global report', rep_child: 'Report per child',
+    rep_children: 'Children', rep_pick_child: 'Child', rep_no_kids: 'Add a child first to make a report.',
+    rep_period: 'Period', rep_p_school: 'This school year', rep_p_6m: 'Last 6 months', rep_p_all: 'Everything', rep_p_custom: 'Own dates',
+    rep_from: 'From', rep_until: 'Until', rep_photos: 'With photos', rep_download: 'Download',
+    rep_need_child: 'Choose at least one child.', rep_need_dates: 'Fill in both dates.',
+    rep_prog_photos: (n, tot) => `Shrinking photos: ${n} of ${tot}…`, rep_prog_pdf: 'Making the PDF…',
+    rep_err_offline: 'Could not make the report: no connection. Please try again.',
+    rep_err: m => `Could not make the report: ${m}`,
+    rep_warn_h: 'Many photos', rep_warn_p: n => `This report has ${n} photos and may be slow. Continue anyway?`, rep_warn_go: 'Continue anyway',
+    rep_title: 'Report', rep_summary: 'Family overview',
+    rep_made: d => `made on ${d}`, rep_page: (p, n) => `page ${p} of ${n}`,
+    rep_range: (a, b) => `${a} – ${b}`, rep_range_all: b => `everything up to ${b}`,
+    rep_col_child: 'Child', rep_col_level: 'Level', rep_col_new: 'Mastered in period', rep_col_total: 'Mastered in total', rep_col_acts: 'Activities',
+    rep_start: 'Start date', rep_end: 'End date',
+    rep_totals: (n, tot, k) => `${n} of ${tot} goals mastered, ${k} of them in this period`,
+    rep_chart: 'Goals mastered, per month',
+    rep_goals: 'Goals', rep_col_code: 'Code', rep_col_goal: 'Goal', rep_col_status: 'Status', rep_col_n: 'Act.',
+    rep_done: d => `mastered ${d}`, rep_open: 'open',
+    rep_acts: 'Activities', rep_no_acts: 'No activities in this period.',
+    rep_missing: n => n === 1 ? '1 photo could not be loaded' : `${n} photos could not be loaded`,
+    rep_file: 'report',
+  },
+};
+
+/* ---------- dates (ISO yyyy-mm-dd strings, calendar arithmetic in UTC so time zones never shift a day) ---------- */
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+const isoOf = d => d.toISOString().slice(0, 10);
+const validIso = s => typeof s === 'string' && ISO.test(s) && isoOf(new Date(s + 'T00:00:00Z')) === s;
+/* the same day n months earlier; a day that month lacks becomes its last day (31 Aug -> 28 Feb) */
+function monthsBack(day, n) {
+  const [y, m, d] = day.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m - 1 - n + 1, 0)).getUTCDate();
+  return isoOf(new Date(Date.UTC(y, m - 1 - n, Math.min(d, last))));
+}
+/* The period of a report: from (null: from the beginning) and until, both included. null: own dates missing or invalid. */
+function periodRange(choice, today, from, until) {
+  if (choice === '6m') return { from: monthsBack(today, 6), until: today };
+  if (choice === 'all') return { from: null, until: today };
+  if (choice === 'custom') {
+    if (!validIso(from) || !validIso(until)) return null;
+    return from <= until ? { from, until } : { from: until, until: from };
+  }
+  const y = Number(today.slice(0, 4)) - (Number(today.slice(5, 7)) < 9 ? 1 : 0);   // the school year runs 1 Sept - 31 Aug
+  return { from: `${y}-09-01`, until: `${y + 1}-08-31` };
+}
+const inRange = (date, r) => (!r.from || date >= r.from) && date <= r.until;
+const newestFirst = (a, b) => b.date.localeCompare(a.date) || ((b.createdAt || 0) - (a.createdAt || 0));
+const selectActivities = (acts, childId, r) => acts.filter(a => a.childIds.includes(childId) && inRange(a.date, r)).sort(newestFirst);
+/* the photos a report shows: the first few of each activity, each photo once */
+function photoIdsFor(acts, limit = PHOTOS_PER_ACTIVITY) {
+  const ids = new Set();
+  for (const a of acts) for (const id of a.photoIds.slice(0, limit)) ids.add(id);
+  return [...ids];
+}
+
+/* ---------- the document ---------- */
+const BROWN = '#725C4E', FG = '#3B2F27', MUTED = '#665244', LINE = '#D9CDBF', GREEN = '#0A8257';
+const STYLES = {
+  h1: { fontSize: 20, bold: true, margin: [0, 0, 0, 4] },
+  h2: { fontSize: 14, bold: true, color: BROWN, margin: [0, 14, 0, 6] },
+  h3: { fontSize: 11, bold: true, margin: [0, 6, 0, 4] },
+  th: { fontSize: 9, bold: true, color: MUTED },
+  muted: { color: MUTED },
+  code: { fontSize: 8.5 },
+};
+/* tables: a line under the header and thin lines between rows, none at the sides */
+const TABLE = {
+  hLineWidth: (i, node) => (i === 0 || i === node.table.body.length ? 0 : i === 1 ? 1 : 0.5),
+  vLineWidth: () => 0, hLineColor: () => LINE,
+  paddingLeft: i => (i ? 6 : 0), paddingRight: () => 6, paddingTop: () => 3, paddingBottom: () => 3,
+};
+const xml = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const periodText = (r, t, fmt) => (r.from ? t('rep_range', fmt.date(r.from), fmt.date(r.until)) : t('rep_range_all', fmt.date(r.until)));
+/* a goal's state at the end of the period: its mastered date, or null (also when it was mastered later) */
+const doneAt = (c, gid, r) => { const d = c.mastered[gid]; return d && d <= r.until ? d : null; };
+function childFacts(c, r, acts) {
+  let total = 0, fresh = 0;
+  for (const g of c.goals) { const d = doneAt(c, g.id, r); if (d) { total++; if (inRange(d, r)) fresh++; } }
+  return { total, fresh, goals: c.goals.length, acts: acts.length };
+}
+
+/* yyyy-mm months from a to b, both included (at most 20 years) */
+function monthList(a, b) {
+  const out = []; let [y, m] = a.split('-').map(Number); const [y2, m2] = b.split('-').map(Number);
+  while ((y < y2 || (y === y2 && m <= m2)) && out.length < 240) { out.push(`${y}-${String(m).padStart(2, '0')}`); if (++m > 12) { m = 1; y++; } }
+  return out;
+}
+/* The chart: per month the number of goals mastered by its end, from the start of the period (everything: the first
+   mastered goal) up to the end of the period or today, whichever comes first. */
+function chartData(c, r, today) {
+  const end = r.until < today ? r.until : today;
+  const dates = c.goals.map(g => c.mastered[g.id]).filter(d => d && d <= end).sort();
+  let start = r.from || dates[0] || end;
+  if (start > end) start = end;
+  const months = monthList(start.slice(0, 7), end.slice(0, 7));
+  return { months, values: months.map(ym => dates.filter(d => d.slice(0, 7) <= ym).length) };
+}
+const niceTop = v => { const p = 10 ** Math.floor(Math.log10(v)); for (const k of [1, 2, 5, 10]) if (k * p >= v) return k * p; return v; };
+function chartSvg({ months, values }, color, fmt) {
+  const W = 500, H = 170, L = 34, R = 10, T = 10, B = 26, pw = W - L - R, ph = H - T - B, n = values.length;
+  const top = niceTop(Math.max(1, ...values));
+  const x = i => L + (n > 1 ? pw * i / (n - 1) : pw / 2), y = v => T + ph - ph * v / top;
+  const grid = [0, top / 2, top].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="${LINE}" stroke-width="1"/>`
+    + `<text x="${L - 6}" y="${y(v) + 3}" font-size="9" text-anchor="end" fill="${MUTED}">${Number.isInteger(v) ? v : v.toFixed(1)}</text>`).join('');
+  const step = Math.ceil(n / 6);   // at most about seven month names
+  const anchor = i => (n < 2 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle');   // the outer names stay inside the picture
+  const axis = months.map((m, i) => ((n - 1 - i) % step ? '' : `<text x="${x(i)}" y="${H - 8}" font-size="9" text-anchor="${anchor(i)}" fill="${MUTED}">${xml(fmt.month(m))}</text>`)).join('');
+  const path = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">${grid}`
+    + `<path d="${path}" fill="none" stroke="${color}" stroke-width="2"/><circle cx="${x(n - 1)}" cy="${y(values[n - 1])}" r="3" fill="${color}"/>${axis}</svg>`;
+}
+
+function summaryBlock({ t, fmt, range }, parts) {
+  return [
+    { text: t('rep_summary'), style: 'h1' },
+    { text: periodText(range, t, fmt), style: 'muted', margin: [0, 0, 0, 12] },
+    { table: { headerRows: 1, widths: ['*', 'auto', 'auto', 'auto', 'auto'], body: [
+      ['rep_col_child', 'rep_col_level', 'rep_col_new', 'rep_col_total', 'rep_col_acts'].map(k => ({ text: t(k), style: 'th' })),
+      ...parts.map(({ c, f }) => [{ text: c.name, bold: true }, c.level, String(f.fresh), `${f.total} / ${f.goals}`, String(f.acts)]),
+    ] }, layout: TABLE },
+  ];
+}
+function childCover({ t, fmt, range }, c, f) {
+  const dates = [c.startDate && `${t('rep_start')}: ${fmt.date(c.startDate)}`, c.endDate && `${t('rep_end')}: ${fmt.date(c.endDate)}`].filter(Boolean);
+  return [
+    { text: c.name, style: 'h1', color: c.color },
+    { text: [c.level, ...dates].join(' · '), style: 'muted' },
+    { text: periodText(range, t, fmt), style: 'muted' },
+    { text: t('rep_totals', f.total, f.goals, f.fresh), bold: true, margin: [0, 6, 0, 0] },
+  ];
+}
+function childChart(input, c) {
+  return [{ text: input.t('rep_chart'), style: 'h2' }, { svg: chartSvg(chartData(c, input.range, input.today), c.color, input.fmt), width: 500 }];
+}
+function goalsTable({ t, fmt, range }, c, acts) {
+  const n = new Map();
+  for (const a of acts) for (const gid of a.goalIds) n.set(gid, (n.get(gid) || 0) + 1);
+  const out = [{ text: t('rep_goals'), style: 'h2' }];
+  let subject = null, rows = null;
+  const flush = () => { if (rows) out.push({ table: { headerRows: 1, dontBreakRows: true, widths: [62, '*', 84, 24], body: rows }, layout: TABLE, margin: [0, 0, 0, 8] }); };
+  for (const g of c.goals) {
+    if (g.subject !== subject) {
+      flush(); subject = g.subject;
+      out.push({ text: subject, style: 'h3' });
+      rows = [['rep_col_code', 'rep_col_goal', 'rep_col_status', 'rep_col_n'].map(k => ({ text: t(k), style: 'th' }))];
+    }
+    const d = doneAt(c, g.id, range);
+    rows.push([{ text: g.code, style: 'code' }, g.text, d ? { text: t('rep_done', fmt.date(d)), color: GREEN } : { text: t('rep_open'), color: MUTED },
+      { text: String(n.get(g.id) || ''), alignment: 'right' }]);
+  }
+  flush();
+  return out;
+}
+const shownPhotos = (input, a) => (input.withPhotos ? a.photoIds.slice(0, PHOTOS_PER_ACTIVITY).filter(id => input.images[id]) : []);
+function activityList(input, c, acts) {
+  const { t, fmt } = input, codes = new Map(c.goals.map(g => [g.id, g.code]));
+  const out = [{ text: t('rep_acts'), style: 'h2' }];
+  if (!acts.length) return [...out, { text: t('rep_no_acts'), style: 'muted' }];
+  for (const a of acts) {
+    const cs = a.goalIds.map(id => codes.get(id)).filter(Boolean), pics = shownPhotos(input, a);
+    out.push({ stack: [
+      { text: [{ text: fmt.date(a.date) + '   ', color: MUTED }, { text: a.title, bold: true }] },
+      ...(cs.length ? [{ text: cs.join(' · '), style: 'code', color: MUTED }] : []),
+      ...(a.notes ? [{ text: a.notes, margin: [0, 2, 0, 0] }] : []),
+      ...(pics.length ? [{ columns: pics.map(id => ({ image: 'p_' + id, fit: [118, 88], width: 'auto' })), columnGap: 6, margin: [0, 4, 0, 0] }] : []),
+    ], margin: [0, 0, 0, 10] });
+  }
+  return out;
+}
+function missingBlock({ t, fmt, missing }) {
+  if (!missing.length) return [];
+  return [{ text: t('rep_missing', missing.length), style: 'h2', pageBreak: 'before' },
+    { ul: missing.map(m => [m.date && fmt.date(m.date), m.title].filter(Boolean).join(' · ') || '—') }];
+}
+
+/* The whole report: the family overview (global only), then per child its cover, chart, goals and activities,
+   each child on a new page; the photos that could not be loaded at the end. */
+function buildReport(input) {
+  const { kind, range, t, fmt, today } = input;
+  const parts = input.children.map(c => { const acts = selectActivities(input.activities, c.id, range); return { c, acts, f: childFacts(c, range, acts) }; });
+  const content = kind === 'global' ? summaryBlock(input, parts) : [];
+  for (const { c, acts, f } of parts) {
+    const part = [...childCover(input, c, f), ...childChart(input, c), ...goalsTable(input, c, acts), ...activityList(input, c, acts)];
+    if (content.length) part[0] = { ...part[0], pageBreak: 'before' };
+    content.push(...part);
+  }
+  content.push(...missingBlock(input));
+  const images = {};
+  if (input.logo) images.logo = input.logo;
+  for (const { acts } of parts) for (const a of acts) for (const id of shownPhotos(input, a)) images['p_' + id] = input.images[id];   // a shared photo once
+  return {
+    pageSize: 'A4', pageMargins: [40, 56, 40, 48],
+    info: { title: `Doelenboek – ${t('rep_title')}`, creator: 'Doelenboek.be', producer: 'Doelenboek.be' },
+    header: input.logo
+      ? { margin: [40, 18, 40, 0], columns: [{ image: 'logo', width: 20 }, { text: 'Doelenboek.be', bold: true, color: BROWN, margin: [6, 4, 0, 0] }] }
+      : { margin: [40, 22, 40, 0], text: 'Doelenboek.be', bold: true, color: BROWN },
+    footer: (page, pages) => ({ margin: [40, 14, 40, 0], fontSize: 8, color: MUTED,
+      columns: [{ text: `Doelenboek.be · ${t('rep_made', fmt.date(today))}` }, { text: t('rep_page', page, pages), alignment: 'right' }] }),
+    content, images, styles: STYLES, defaultStyle: { fontSize: 10, color: FG, lineHeight: 1.2 },
+  };
+}
+/* doelenboek-rapport[-child]-date.pdf; letters (any alphabet) and digits stay, everything else becomes a dash */
+function fileName(kind, name, today, t) {
+  const safe = String(name).normalize('NFC').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'kind';
+  return `doelenboek-${t('rep_file')}${kind === 'child' ? '-' + safe : ''}-${today}.pdf`;
+}
+
+return { TEXTS, COLORS, PHOTOS_PER_ACTIVITY, PHOTO_WARN, PERIODS, periodRange, inRange, selectActivities, photoIdsFor, chartData, buildReport, fileName };
+})();
+if (typeof module !== 'undefined') module.exports = Report;
+</script>
+<script>
+/* Doelenboek reports in the browser: loads pdfmake from our own site the first time a report is made, shrinks the
+   photos, turns Report's document description into a PDF and offers it as a download. tools/build.py inlines this file. */
+const ReportRun = (() => {
+'use strict';
+const PDFMAKE = ['vendor/pdfmake/pdfmake.min.js', 'vendor/pdfmake/vfs_fonts.js'];   // copied to the site by tools/build.py
+const MAX_SIDE = 1000, QUALITY = 0.75, AT_ONCE = 3;
+let loading = null;
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res;
+    s.onerror = () => { s.remove(); rej(new Error('offline')); };
+    document.head.appendChild(s);
+  });
+}
+/* once per page; a failed load is tried again on the next report */
+function loadPdfMake() {
+  if (!loading) loading = (async () => { for (const src of PDFMAKE) await loadScript(src); if (!window.pdfMake?.createPdf) throw new Error('offline'); })()
+    .catch(e => { loading = null; throw e; });
+  return loading;
+}
+/* true when base64 data starts like the JPEG or PNG its mime type claims; anything else is decoded first (and a broken
+   photo then fails on its own instead of breaking the whole PDF) */
+const looksLike = (mime, b64) => (mime === 'image/jpeg' && b64.startsWith('/9j/')) || (mime === 'image/png' && b64.startsWith('iVBORw0KGgo'));
+/* A stored photo ({mime, w, h, data}) as a data URL pdfmake can use: JPEG or PNG of at most MAX_SIDE pixels are used as
+   they are; larger ones and WebP (which pdfmake cannot read) are drawn again as JPEG. */
+async function shrink(rec) {
+  if (looksLike(rec.mime, rec.data) && rec.w && rec.h && Math.max(rec.w, rec.h) <= MAX_SIDE) return `data:${rec.mime};base64,${rec.data}`;
+  const bin = atob(rec.data), arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  const bmp = await createImageBitmap(new Blob([arr], { type: rec.mime }));
+  try {
+    const s = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(bmp.width * s)); c.height = Math.max(1, Math.round(bmp.height * s));
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    const url = c.toDataURL('image/jpeg', QUALITY);
+    c.width = c.height = 0;   // iOS Safari counts canvas memory until it is collected; free it now
+    return url;
+  } finally { bmp.close?.(); }
+}
+async function pool(items, fn, onDone) {
+  let i = 0, done = 0;
+  const worker = async () => { while (i < items.length) { const it = items[i++]; await fn(it); onDone(++done); } };
+  await Promise.all(Array.from({ length: Math.min(AT_ONCE, items.length) }, worker));
+}
+async function dataUrl(path) {
+  try { const b = await (await fetch(path)).blob(); return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); }); }
+  catch (e) { return null; }   // the report works without its logo
+}
+function save(blob, name) {
+  const url = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);   // iOS opens the PDF in a new view; give it time to read the blob
+}
+
+async function run({ photoIds, getPhoto, build, fileName, onProgress }) {
+  const pdfReady = loadPdfMake();   // pdfmake downloads while the photos are shrunk
+  pdfReady.catch(() => {});
+  const logoReady = dataUrl('logo.png');
+  const images = {}, failed = [];
+  if (photoIds.length) onProgress('photos', 0, photoIds.length);
+  await pool(photoIds, async id => {
+    try { const rec = await getPhoto(id); if (!rec) throw new Error('missing'); images[id] = await shrink(rec); }
+    catch (e) { failed.push(id); }
+  }, n => onProgress('photos', n, photoIds.length));
+  if (failed.length && navigator.onLine === false) throw new Error('offline');
+  onProgress('pdf');
+  await pdfReady;
+  const doc = build({ images, failed, logo: await logoReady });
+  save(await window.pdfMake.createPdf(doc).getBlob(), fileName);
+}
+
+return { run, looksLike };
+})();
+if (typeof module !== 'undefined') module.exports = ReportRun;
 </script>
 <script>
 (() => {
@@ -13868,7 +14206,7 @@ const T = {
     pg_aria: (k, p, e) => `${k}: ${p}% beheerst, schema ${e}%`, cal_close: 'Inklappen', cal_open: 'Uitklappen', cal_span: (n, d) => `${nlN(n, 'activiteit', 'activiteiten')} van ${d} tot vandaag`, cal_note_all: 'Elke dag van de gekozen periode; hoe donkerder, hoe meer activiteiten die dag.', cal_r_all: 'Alles', cal_r_2y: 'Afgelopen 2 jaar', cal_r_year: 'Afgelopen jaar', cal_r_6m: 'Afgelopen 6 maanden', cal_rs_all: 'Alles', cal_rs_2y: '2 jaar', cal_rs_year: '1 jaar', cal_rs_6m: '6 mnd', cal_ranges: 'Periode van de kalender', cal_tip: (d, n) => `${d}: ${nlN(n, 'activiteit', 'activiteiten')}`,
     dash_empty: 'Voeg een kind toe om hier de grafiek te zien.', dash_all_off: 'Zet minstens één kind aan.', dash_aria: (name, n) => `${name}: ${n} beheerst`,
     tab_reporting: 'Rapportering', h_reporting: 'Rapportering',
-    reporting_p: 'In dit onderdeel zul je PDF-rapporten van het thuisonderwijstraject van je kinderen kunnen maken en downloaden, met tijdlijnen, activiteiten, grafieken en natuurlijk de behandelde minimumdoelen.', reporting_soon: 'Deze functie komt binnenkort.',
+   
     st_connecting: 'Verbinden…', st_saved: 'Automatisch opgeslagen', st_readonly: 'Alleen lezen',
     data_btn: 'Instellingen', loading: 'Gegevens laden…', locale: 'nl-BE', theme_h: 'Weergave', theme_light: 'Licht', theme_dark: 'Donker',
     example_banner: 'Je ziet <b>voorbeeldgegevens</b> zodat je kunt zien hoe het werkt. Verwijder ze wanneer je je eigen kinderen toevoegt.',
@@ -13988,7 +14326,7 @@ const T = {
     pg_aria: (k, p, e) => `${k}: ${p}% mastered, schedule ${e}%`, cal_close: 'Collapse', cal_open: 'Expand', cal_span: (n, d) => `${nlN(n, 'activity', 'activities')} from ${d} to today`, cal_note_all: 'Every day of the chosen period; the darker, the more activities that day.', cal_r_all: 'All time', cal_r_2y: 'Past 2 years', cal_r_year: 'Past year', cal_r_6m: 'Past 6 months', cal_rs_all: 'All', cal_rs_2y: '2 yrs', cal_rs_year: '1 yr', cal_rs_6m: '6 mo', cal_ranges: 'Calendar period', cal_tip: (d, n) => `${d}: ${nlN(n, 'activity', 'activities')}`,
     dash_empty: 'Add a child to see the graph here.', dash_all_off: 'Turn on at least one child.', dash_aria: (name, n) => `${name}: ${n} mastered`,
     tab_reporting: 'Reporting', h_reporting: 'Reporting',
-    reporting_p: "Here you will be able to generate and download PDF reports of your children's homeschooling journey, including timelines, activities, graphs, and of course the minimumdoelen covered.", reporting_soon: 'This feature is coming soon.',
+   
     st_connecting: 'Connecting…', st_saved: 'Saved automatically', st_readonly: 'Read only',
     data_btn: 'Settings', loading: 'Loading data…', locale: 'en-GB', theme_h: 'Appearance', theme_light: 'Light', theme_dark: 'Dark',
     example_banner: 'You are looking at <b>example data</b> so you can see how it works. Remove it when you add your own children.',
@@ -14095,6 +14433,7 @@ const T = {
     late_write_fail: 'A change could not be saved to your account. Reload the page and check your data.',
   },
 };
+for (const l of ['nl', 'en']) Object.assign(T[l], Report.TEXTS[l]);   // the report texts live in src/report.js, where its tests check them
 let lang = 'nl';
 try { const saved = localStorage.getItem(LANG_KEY); if (saved === 'en' || saved === 'nl') lang = saved; } catch (e) {}
 const tIn = (l, k, ...a) => { const v = T[l][k] ?? T.nl[k]; return typeof v === 'function' ? v(...a) : (v ?? k); };
@@ -14177,6 +14516,7 @@ const ui = {
   dashRel: false,   // mastered goals: false ABS (the number of goals), true REL (percent of the child's level)
   calDay: null, amAll: false, goAct: null,   // dashboard: the calendar day opened, the whole almost-mastered list; an activity to scroll to
   actFrom: null, actTo: null,   // the activities graph's own first and last month (null: from the first activity); its lines are always straight
+  rep: { kind: 'global', off: new Set(), child: '', period: 'school', from: '', until: '', photos: false, busy: '' },   // Rapportering: the form; off = children unticked; busy = progress text while a report is made
 };
 /* The dashboard choices come back on the next visit. A range that ends in the current month is saved
    without its end, so next month it ends in that month instead of staying behind. */
@@ -15022,10 +15362,73 @@ function dashPlot(shown, labels, aria, emptyMsg, straight, rel) {
     <div class="dc-axis" aria-hidden="true">${labels.map((l, i) => (N - 1 - i) % step ? '' : `<span style="left:${xs[i].toFixed(2)}%">${esc(l)}</span>`).join('')}</div>`;
 }
 
-/* Reporting: a note on what is coming, until the reports exist */
+/* Rapportering: the form for a PDF report. Globaal = a family overview and a part per ticked child; per kind = one child.
+   The report is made in this browser (src/report.js, src/report-run.js); nothing is stored. */
 function viewReporting() {
-  return `<section class="page-head"><div><h1>${esc(t('h_reporting'))}</h1></div></section>
-    <section class="soon-note"><p>${esc(t('reporting_p'))}</p><p><b>${esc(t('reporting_soon'))}</b></p></section>`;
+  const r = ui.rep, kids = sortedChildren();
+  let h = `<section class="page-head"><div><h1>${esc(t('h_reporting'))}</h1></div></section>`;
+  if (!kids.length) return h + `<p class="muted">${esc(t('rep_no_kids'))}</p>`;
+  const seg = (action, cur, keys, label) => `<div class="sex-pick tier-filter rep-seg" role="group" aria-label="${esc(label)}">${keys.map(([k, lbl]) =>
+    `<button type="button" data-action="${action}" data-id="${k}" aria-pressed="${cur === k}">${esc(t(lbl))}</button>`).join('')}</div>`;
+  const who = r.kind === 'global'
+    ? `<div class="rep-kids">${kids.map(c => `<label><input type="checkbox" data-rep-kid="${esc(c.id)}" ${r.off.has(c.id) ? '' : 'checked'}> ${esc(c.name)}</label>`).join('')}</div>`
+    : `<select class="select" id="rep-child" aria-label="${esc(t('rep_pick_child'))}">${kids.map(c => `<option value="${esc(c.id)}" ${c.id === r.child ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>`;
+  const own = r.period === 'custom' ? `<div class="rep-row rep-dates">
+      <label class="date-in"><span>${esc(t('rep_from'))}</span><input class="select" id="rep-from" type="date" value="${esc(r.from)}"></label>
+      <label class="date-in"><span>${esc(t('rep_until'))}</span><input class="select" id="rep-until" type="date" value="${esc(r.until)}"></label></div>` : '';
+  return h + `<section class="card rep-form"><fieldset ${r.busy ? 'disabled' : ''}>
+    <div class="rep-row"><span class="rep-lbl">${esc(t('rep_type'))}</span>${seg('rep-kind', r.kind, [['global', 'rep_global'], ['child', 'rep_child']], t('rep_type'))}</div>
+    <div class="rep-row"><span class="rep-lbl">${esc(t(r.kind === 'global' ? 'rep_children' : 'rep_pick_child'))}</span>${who}</div>
+    <div class="rep-row"><span class="rep-lbl">${esc(t('rep_period'))}</span>${seg('rep-period', r.period, Report.PERIODS.map(p => [p, 'rep_p_' + p]), t('rep_period'))}</div>
+    ${own}
+    <label class="rep-check"><input type="checkbox" id="rep-photos" ${r.photos ? 'checked' : ''}> ${esc(t('rep_photos'))}</label>
+    <div><button class="btn primary" type="button" id="rep-run" data-action="rep-run">${esc(r.busy || t('rep_download'))}</button></div>
+  </fieldset></section>`;
+}
+/* The builder's input: per chosen child its level's goals in display order and language, its ticks on them, its colour
+   (the dashboard's, by the order the children were added); all activities (the builder picks per child and period). */
+function reportInput(kind, kids, range, today, { images, failed, logo }) {
+  const acts = [...data.activities.values()], order = new Map(dashKids().map((c, i) => [c.id, i]));
+  return {
+    kind, range, today, withPhotos: ui.rep.photos, images, logo, t, activities: acts,
+    fmt: { date: fmtDate, month: ym => cap1(new Intl.DateTimeFormat(t('locale'), { month: 'short', year: '2-digit' }).format(dateObj(ym + '-15'))) },
+    missing: failed.map(id => { const a = acts.find(x => x.photoIds.includes(id)); return { date: a?.date || '', title: a?.title || '' }; }),
+    children: kids.map(c => {
+      const tier = tierOf(c);
+      return { id: c.id, name: c.name, level: TIER[tier].name[lang], startDate: c.startDate || null, endDate: c.targetDate || null,
+        color: Report.COLORS[DASH_COLORS[(order.get(c.id) || 0) % DASH_COLORS.length]],
+        mastered: Object.fromEntries(inTier(masteredOf(c), tier)),
+        goals: sortedGoals(tier).filter(g => inT(g, tier)).map(g => ({ id: g.id, code: gCode(g, tier), text: gDesc(g), subject: sName(g.subject, tier) })) };
+    }),
+  };
+}
+/* Download: check the form, warn about very many photos, then make the report. */
+function runReport() {
+  const r = ui.rep, today = todayIso(), all = sortedChildren();
+  const kids = r.kind === 'global' ? all.filter(c => !r.off.has(c.id)) : [data.children.get(r.child) || all[0]].filter(Boolean);
+  if (!kids.length) { toast(t('rep_need_child'), true); return; }
+  const range = Report.periodRange(r.period, today, r.from, r.until);
+  if (!range) { toast(t('rep_need_dates'), true); return; }
+  const shown = new Map();
+  for (const c of kids) for (const a of Report.selectActivities([...data.activities.values()], c.id, range)) shown.set(a.id, a);
+  const photoIds = r.photos ? Report.photoIdsFor([...shown.values()]) : [];
+  const go = () => { makeReport(r.kind, kids, range, today, photoIds); };   // not awaited: the warning closes at once
+  if (photoIds.length > Report.PHOTO_WARN) confirmDialog(t('rep_warn_h'), `<p>${esc(t('rep_warn_p', photoIds.length))}</p>`, t('rep_warn_go'), go);
+  else go();
+}
+async function makeReport(kind, kids, range, today, photoIds) {
+  const show = s => { ui.rep.busy = s; const b = document.getElementById('rep-run'); if (b) b.textContent = s; };   // the button shows progress without a full render
+  ui.rep.busy = t('rep_prog_pdf'); render();
+  try {
+    await ReportRun.run({
+      photoIds, getPhoto: id => photoStore.get(id),
+      onProgress: (step, n, total) => show(step === 'photos' ? t('rep_prog_photos', n, total) : t('rep_prog_pdf')),
+      build: parts => Report.buildReport(reportInput(kind, kids, range, today, parts)),
+      fileName: Report.fileName(kind, kids[0].name, today, t),
+    });
+  } catch (e) {
+    toast(e && e.message === 'offline' ? t('rep_err_offline') : t('rep_err', errMsg(e)), true);
+  } finally { ui.rep.busy = ''; render(); }
 }
 
 function viewGoals(cov) {
@@ -15720,6 +16123,9 @@ main.addEventListener('click', e => {
   const b = e.target.closest('[data-action]'); if (!b || b.disabled) return;
   const id = b.dataset.id, act = b.dataset.action;
   switch (act) {
+    case 'rep-kind': ui.rep.kind = id; render(); return;
+    case 'rep-period': ui.rep.period = id; render(); return;
+    case 'rep-run': return runReport();
     case 'add-child': return childDialog(null);
     case 'edit-child': return childDialog(data.children.get(id));
     case 'delete-child': return deleteChild(id);
@@ -15793,6 +16199,11 @@ main.addEventListener('input', e => {
   if (e.target.id === 'kid-search') { ui.kidSearch = e.target.value; scheduleRender(); }
 });
 main.addEventListener('change', e => {
+  if (e.target.id === 'rep-child') ui.rep.child = e.target.value;
+  if (e.target.id === 'rep-from') ui.rep.from = e.target.value;
+  if (e.target.id === 'rep-until') ui.rep.until = e.target.value;
+  if (e.target.id === 'rep-photos') ui.rep.photos = e.target.checked;
+  if (e.target.dataset.repKid) { const id = e.target.dataset.repKid; if (e.target.checked) ui.rep.off.delete(id); else ui.rep.off.add(id); }
   if (e.target.id === 'act-child') { ui.actChild = e.target.value; render(); }
   if (e.target.id === 'act-from') { ui.actDayFrom = e.target.value; render(); }
   if (e.target.id === 'act-until') { ui.actDayUntil = e.target.value; render(); }
